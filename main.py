@@ -21,14 +21,27 @@ MAX_LENGTH = 280
 DEFAULT_OUTPUT = "/output/entry.txt"
 
 
+def normalize_joke(text: str) -> str:
+    """Collapse runs of whitespace to single spaces and strip the ends.
+
+    The joke is hand-written and already clean, so this is a no-op for
+    it — but it makes the validator robust against accidental double
+    spaces or stray leading/trailing whitespace in future edits.
+    """
+    return " ".join(text.split())
+
+
 def validate_joke(text: str) -> str:
-    """Return the joke unchanged if it satisfies the entry rules.
+    """Return the normalized joke if it satisfies the entry rules.
 
     Rules (from the competition kit): 1-280 Unicode code points,
     not only whitespace, and exactly one line.
     """
     if not isinstance(text, str):
         raise TypeError("joke must be a string")
+    if text != text.strip() or "  " in text:
+        raise ValueError("joke must not have leading/trailing whitespace "
+                         "or repeated spaces")
     if not text.strip():
         raise ValueError("joke must not be only whitespace")
     if not MIN_LENGTH <= len(text) <= MAX_LENGTH:
@@ -49,16 +62,20 @@ def output_path() -> Path:
 
 
 def render() -> str:
-    """Build the entry text (the joke, validated)."""
-    return validate_joke(JOKE)
+    """Build the entry text (the joke, normalized and validated)."""
+    return validate_joke(normalize_joke(JOKE))
 
 
 def write_entry(path: Path | None = None) -> Path:
-    """Write the validated joke to entry.txt and return its path."""
+    """Write the validated joke to entry.txt and return its path.
+
+    Writes exactly the validated text as UTF-8 bytes: one line, no
+    trailing newline added.
+    """
     target = path or output_path()
     text = render()
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
+    target.write_bytes(text.encode("utf-8"))
     return target
 
 
